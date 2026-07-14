@@ -32,12 +32,22 @@ members = [
 	"client/db",
 	"client/storage",
 	"client/mapping-sync",
+	"client/expand/evm-tracing",
+	"client/expand/rpc-core/types",
+	"client/expand/rpc-core/trace",
+	"client/expand/rpc-core/debug",
+	"client/expand/rpc/debug",
+	"client/expand/rpc/trace",
 	"primitives/account",
 	"primitives/consensus",
 	"primitives/dynamic-fee",
 	"primitives/evm",
 	"primitives/rpc",
 	"primitives/self-contained",
+	"primitives/expand/ext",
+	"primitives/expand/rpc/evm-tracing-events",
+	"primitives/expand/rpc/debug",
+	"runtime/evm-tracer",
 	"template/node",
 	"template/runtime",
 	"precompiles",
@@ -63,6 +73,8 @@ environmental = { version = "1.1.4", default-features = false }
 ethereum = { version = "0.18.2", default-features = false }
 ethereum-types = { version = "0.15", default-features = false }
 evm = { git = "https://github.com/rust-ethereum/evm.git", branch = "v0.x", default-features = false }
+evm-gasometer = { git = "https://github.com/rust-ethereum/evm.git", branch = "v0.x", default-features = false }
+evm-runtime = { git = "https://github.com/rust-ethereum/evm.git", branch = "v0.x", default-features = false }
 futures = "0.3.31"
 hash-db = { version = "0.16.0", default-features = false }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
@@ -90,7 +102,11 @@ sqlx = { version = "0.8.6", default-features = false, features = ["macros"] }
 syn = "2.0.87"
 thiserror = "2.0"
 tokio = { version = "1.45.0", default-features = false }
-
+sha3 = "0.10"
+tracing = "0.1.34"
+parity-scale-codec = { version = "3.2.2", default-features = false, features = [
+	"derive",
+] }
 # Substrate Client
 sc-basic-authorship = { git = "https://github.com/deepslabs/polkadot-sdk", branch = "deep-stable2603" }
 sc-block-builder = { git = "https://github.com/deepslabs/polkadot-sdk", branch = "deep-stable2603" }
@@ -197,6 +213,12 @@ fc-rpc-v2 = { path = "client/rpc-v2" }
 fc-rpc-v2-api = { path = "client/rpc-v2/api" }
 fc-rpc-v2-types = { path = "client/rpc-v2/types" }
 fc-storage = { path = "client/storage" }
+fc-evm-tracing = { version = "0.1.0", path = "client/expand/evm-tracing" }
+fc-rpc-core-debug = { version = "0.1.0", path = "client/expand/rpc-core/debug" }
+fc-rpc-core-trace = { version = "0.6.0", path = "client/expand/rpc-core/trace" }
+fc-rpc-core-types = { version = "0.1.0", path = "client/expand/rpc-core/types" }
+fc-rpc-debug = { version = "0.1.0", path = "client/expand/rpc/debug" }
+fc-rpc-trace = { version = "0.1.0", path = "client/expand/rpc/trace" }
 # Frontier Primitive
 fp-account = { path = "primitives/account", default-features = false }
 fp-consensus = { path = "primitives/consensus", default-features = false }
@@ -206,6 +228,11 @@ fp-evm = { path = "primitives/evm", default-features = false }
 fp-rpc = { path = "primitives/rpc", default-features = false }
 fp-self-contained = { path = "primitives/self-contained", default-features = false }
 fp-storage = { path = "primitives/storage", default-features = false }
+fp-ext = { version = "0.1.0", path = "primitives/expand/ext", default-features = false }
+fp-rpc-debug = { version = "0.1.0", path = "primitives/expand/rpc/debug", default-features = false }
+fp-rpc-evm-tracing-events = { version = "0.1.0", path = "primitives/expand/rpc/evm-tracing-events", default-features = false }
+# Frontier Runtime
+evm-tracer = { version = "0.1.0", path = "runtime/evm-tracer", default-features = false }
 # Frontier FRAME
 pallet-base-fee = { path = "frame/base-fee", default-features = false }
 pallet-dynamic-fee = { path = "frame/dynamic-fee", default-features = false }

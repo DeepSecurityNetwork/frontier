@@ -12,7 +12,7 @@ use sp_runtime_interface::{
 	runtime_interface,
 };
 
-use parity_scale_codec::Decode;
+use scale_codec::Decode;
 use sp_std::vec::Vec;
 
 use fp_rpc_evm_tracing_events::{Event, EvmEvent, GasometerEvent, RuntimeEvent, StepEventFilter};

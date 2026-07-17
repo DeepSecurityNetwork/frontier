@@ -9,7 +9,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod tracer {
-	use codec::Encode;
+	use scale_codec::Encode;
 	use fp_rpc_evm_tracing_events::{EvmEvent, GasometerEvent, RuntimeEvent, StepEventFilter};
 
 	use evm::tracing::{using as evm_using, EventListener as EvmListener};

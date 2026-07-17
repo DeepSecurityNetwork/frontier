@@ -73,6 +73,8 @@ polkadot-runtime-common = { workspace = true }
 # Cumulus primitives
 cumulus-pallet-weight-reclaim = { workspace = true }
 
+evm-tracer = { workspace = true }
+
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
@@ -81,6 +83,7 @@ default = ["std", "with-paritydb-weights"]
 with-rocksdb-weights = []
 with-paritydb-weights = []
 std = [
+	"evm-tracer/std",
 	"ethereum/std",
 	"scale-codec/std",
 	"scale-info/std",

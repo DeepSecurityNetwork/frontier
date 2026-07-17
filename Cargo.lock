@@ -4107,6 +4107,7 @@ version = "0.0.0"
 dependencies = [
  "cumulus-pallet-weight-reclaim",
  "ethereum",
+ "evm-tracer",
  "fp-account",
  "fp-evm",
  "fp-rpc",

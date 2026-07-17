@@ -2,7 +2,7 @@
 
 use ethereum::{AuthorizationList, LegacyTransaction, TransactionV2, TransactionV3};
 use ethereum_types::{H160, H256, U256};
-use parity_scale_codec::{Decode, Encode};
+use scale_codec::{Decode, Encode};
 use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {

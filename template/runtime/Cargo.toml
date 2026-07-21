@@ -74,6 +74,9 @@ polkadot-runtime-common = { workspace = true }
 cumulus-pallet-weight-reclaim = { workspace = true }
 
 evm-tracer = { workspace = true }
+fp-rpc-debug = { workspace = true }
+fp-ext = { workspace = true }
+fp-rpc-evm-tracing-events = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -84,6 +87,9 @@ with-rocksdb-weights = []
 with-paritydb-weights = []
 std = [
 	"evm-tracer/std",
+	"fp-rpc-debug/std",
+	"fp-ext/std",
+	"fp-rpc-evm-tracing-events/std",
 	"ethereum/std",
 	"scale-codec/std",
 	"scale-info/std",

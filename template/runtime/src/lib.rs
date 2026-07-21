@@ -1036,6 +1036,246 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl fp_rpc_debug::DebugRuntimeApi<Block> for Runtime {
+				fn trace_transaction(
+					extrinsics: Vec<<Block as BlockT>::Extrinsic>,
+					traced_transaction: &EthereumTransaction,
+					header: &<Block as BlockT>::Header,
+				) -> Result<
+					(),
+					sp_runtime::DispatchError,
+				> {
+					#[cfg(feature = "evm-tracing")]
+					{
+						use evm_tracer::tracer::{
+							EthereumTracingStatus,
+							EvmTracer,
+							EthereumTracer
+						};
+						use frame_support::storage::unhashed;
+						use frame_system::pallet_prelude::BlockNumberFor;
+
+						// Tell the CallDispatcher we are tracing a specific Transaction.
+						EthereumTracer::transaction(traced_transaction.hash(), || {
+							// Initialize block: calls the "on_initialize" hook on every pallet
+							// in AllPalletsWithSystem.
+							// After pallet message queue was introduced, this must be done only after
+							// enabling XCM tracing by calling ETHEREUM_TRACING_STATUS::using
+							// in the storage
+							Executive::initialize_block(header);
+
+							// Apply a subset of extrinsics: all the substrate-specific or ethereum
+							// transactions that preceded the requested transaction.
+							for ext in extrinsics.into_iter() {
+								let _ = match &ext.0.function {
+									RuntimeCall::Ethereum(transact { transaction }) => {
+										// Reset the previously consumed weight when tracing ethereum transactions.
+										// This is necessary because EVM tracing introduces additional
+										// (ref_time) overhead, which differs from the production runtime behavior.
+										// Without resetting the block weight, the extra tracing overhead could
+										// leading to some transactions to incorrectly fail during tracing.
+										frame_system::BlockWeight::<Runtime>::kill();
+
+										if transaction == traced_transaction {
+											EvmTracer::new().trace(|| Executive::apply_extrinsic(ext));
+											return Ok(());
+										} else {
+											Executive::apply_extrinsic(ext)
+										}
+									}
+									_ => Executive::apply_extrinsic(ext),
+								};
+
+								if let Some(EthereumTracingStatus::TransactionExited) = EthereumTracer::status() {
+									return Ok(());
+								}
+							}
+
+							if let Some(EthereumTracingStatus::Transaction(_)) = EthereumTracer::status() {
+								// If the transaction was not found, it might be
+								// an eth-xcm transaction that was executed at on_idle
+								replay_on_idle();
+							}
+
+							if let Some(EthereumTracingStatus::TransactionExited) = EthereumTracer::status() {
+								// The transaction was found
+								Ok(())
+							} else {
+								// The transaction was not-found
+								Err(sp_runtime::DispatchError::Other(
+									"Failed to find Ethereum transaction among the extrinsics.",
+								))
+							}
+						})
+					}
+					#[cfg(not(feature = "evm-tracing"))]
+					Err(sp_runtime::DispatchError::Other(
+						"Missing `evm-tracing` compile time feature flag.",
+					))
+				}
+
+				fn trace_block(
+					extrinsics: Vec<<Block as BlockT>::Extrinsic>,
+					known_transactions: Vec<H256>,
+					header: &<Block as BlockT>::Header,
+				) -> Result<
+					(),
+					sp_runtime::DispatchError,
+				> {
+					#[cfg(feature = "evm-tracing")]
+					{
+						use evm_tracer::tracer::{
+							EthereumTracingStatus,
+							EvmTracer,
+							EthereumTracer
+						};
+						use frame_system::pallet_prelude::BlockNumberFor;
+
+						// Tell the CallDispatcher we are tracing a full Block.
+						EthereumTracer::block(|| {
+							let mut config = <Runtime as pallet_evm::Config>::config().clone();
+							config.estimate = true;
+
+							// Initialize block: calls the "on_initialize" hook on every pallet
+							// in AllPalletsWithSystem.
+							// After pallet message queue was introduced, this must be done only after
+							// enabling XCM tracing by calling ETHEREUM_TRACING_STATUS::using
+							// in the storage
+							Executive::initialize_block(header);
+
+							// Apply all extrinsics. Ethereum extrinsics are traced.
+							for ext in extrinsics.into_iter() {
+								match &ext.0.function {
+									RuntimeCall::Ethereum(transact { transaction }) => {
+
+										// Reset the previously consumed weight when tracing multiple transactions.
+										// This is necessary because EVM tracing introduces additional
+										// (ref_time) overhead, which differs from the production runtime behavior.
+										// Without resetting the block weight, the extra tracing overhead could
+										// leading to some transactions to incorrectly fail during tracing.
+										frame_system::BlockWeight::<Runtime>::kill();
+
+										let tx_hash = &transaction.hash();
+										if known_transactions.contains(&tx_hash) {
+											// Each known extrinsic is a new call stack.
+											EvmTracer::emit_new();
+											EvmTracer::new().trace(|| {
+												if let Err(err) = Executive::apply_extrinsic(ext) {
+													log::debug!(
+														target: "tracing",
+														"Could not trace eth transaction (hash: {}): {:?}",
+														&tx_hash,
+														err
+													);
+												}
+											});
+										} else {
+											if let Err(err) = Executive::apply_extrinsic(ext) {
+												log::debug!(
+													target: "tracing",
+													"Failed to apply eth extrinsic (hash: {}): {:?}",
+													&tx_hash,
+													err
+												);
+											}
+										}
+									}
+									_ => {
+										if let Err(err) = Executive::apply_extrinsic(ext) {
+											log::debug!(
+												target: "tracing",
+												"Failed to apply non-eth extrinsic: {:?}",
+												err
+											);
+										}
+									}
+								};
+							}
+
+							// Replay on_idle
+							// Some XCM messages with eth-xcm transaction might be executed at on_idle
+							replay_on_idle();
+
+							Ok(())
+						})
+					}
+					#[cfg(not(feature = "evm-tracing"))]
+					Err(sp_runtime::DispatchError::Other(
+						"Missing `evm-tracing` compile time feature flag.",
+					))
+				}
+
+				fn trace_call(
+					header: &<Block as BlockT>::Header,
+					from: H160,
+					to: H160,
+					data: Vec<u8>,
+					value: U256,
+					gas_limit: U256,
+					max_fee_per_gas: Option<U256>,
+					max_priority_fee_per_gas: Option<U256>,
+					nonce: Option<U256>,
+					access_list: Option<Vec<(H160, Vec<H256>)>>,
+					authorization_list: Option<AuthorizationList>,
+				) -> Result<(), sp_runtime::DispatchError> {
+					#[cfg(feature = "evm-tracing")]
+					{
+						use moonbeam_evm_tracer::tracer::EvmTracer;
+
+						// Initialize block: calls the "on_initialize" hook on every pallet
+						// in AllPalletsWithSystem.
+						Executive::initialize_block(header);
+
+						EvmTracer::new().trace(|| {
+							let is_transactional = false;
+							let validate = true;
+
+							let transaction_data = pallet_ethereum::TransactionData::new(
+								pallet_ethereum::TransactionAction::Call(to),
+								data.clone(),
+								nonce.unwrap_or_default(),
+								gas_limit,
+								None,
+								max_fee_per_gas.or(Some(U256::default())),
+								max_priority_fee_per_gas.or(Some(U256::default())),
+								value,
+								Some(<Runtime as pallet_evm::Config>::ChainId::get()),
+								access_list.clone().unwrap_or_default(),
+								authorization_list.clone().unwrap_or_default(),
+							);
+
+							let gas_limit = gas_limit.min(u64::MAX.into()).low_u64();
+
+							let (weight_limit, proof_size_base_cost) = pallet_ethereum::Pallet::<Runtime>::transaction_weight(&transaction_data);
+
+							let _ = <Runtime as pallet_evm::Config>::Runner::call(
+								from,
+								to,
+								data,
+								value,
+								gas_limit,
+								max_fee_per_gas,
+								max_priority_fee_per_gas,
+								nonce,
+								access_list.unwrap_or_default(),
+								authorization_list.unwrap_or_default(),
+								is_transactional,
+								validate,
+								weight_limit,
+								proof_size_base_cost,
+								Default::default(),
+								<Runtime as pallet_evm::Config>::config(),
+							);
+						});
+						Ok(())
+					}
+					#[cfg(not(feature = "evm-tracing"))]
+					Err(sp_runtime::DispatchError::Other(
+						"Missing `evm-tracing` compile time feature flag.",
+					))
+				}
+			}
+
 	impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {
 		fn convert_transaction(transaction: EthereumTransaction) -> <Block as BlockT>::Extrinsic {
 			UncheckedExtrinsic::new_bare(

@@ -10,8 +10,8 @@ use tokio::{
 use ethereum_types::H256;
 use fc_evm_tracing::{formatters::ResponseFormatter, types::single};
 use fc_rpc::{frontier_backend_client, internal_err};
-use fc_storage::StorageOverride;
 use fc_rpc_core_types::{RequestBlockId, RequestBlockTag};
+use fc_storage::StorageOverride;
 use fp_rpc::EthereumRuntimeRPCApi;
 use fp_rpc_debug::{DebugRuntimeApi, TracerInput};
 use sc_client_api::backend::{Backend, StateBackend, StorageProvider};
@@ -23,7 +23,7 @@ use sp_blockchain::{
 };
 use sp_runtime::{
 	generic::BlockId,
-	traits::{BlakeTwo256, Block as BlockT, UniqueSaturatedInto, Header as HeaderT}
+	traits::{BlakeTwo256, Block as BlockT, Header as HeaderT, UniqueSaturatedInto},
 };
 use std::{future::Future, marker::PhantomData, sync::Arc};
 
@@ -308,7 +308,7 @@ where
 		let blockchain = backend.blockchain();
 		// Get the header I want to work with.
 		let Ok(hash) = client.expect_block_hash_from_id(&reference_id) else {
-			return Err(internal_err("Block header not found"))
+			return Err(internal_err("Block header not found"));
 		};
 		let header = match client.header(hash) {
 			Ok(Some(h)) => h,
@@ -471,7 +471,7 @@ where
 		let blockchain = backend.blockchain();
 		// Get the header I want to work with.
 		let Ok(reference_hash) = client.expect_block_hash_from_id(&reference_id) else {
-			return Err(internal_err("Block header not found"))
+			return Err(internal_err("Block header not found"));
 		};
 		let header = match client.header(reference_hash) {
 			Ok(Some(h)) => h,

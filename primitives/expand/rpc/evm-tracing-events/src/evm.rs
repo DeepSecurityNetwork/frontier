@@ -124,7 +124,7 @@ pub enum EvmEvent {
 		address: H160,
 		topics: Vec<H256>,
 		data: Vec<u8>,
-	}
+	},
 }
 
 #[cfg(feature = "evm-tracing")]

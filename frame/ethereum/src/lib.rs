@@ -420,7 +420,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn recover_signer(transaction: &Transaction) -> Option<H160> {
+	pub fn recover_signer(transaction: &Transaction) -> Option<H160> {
 		let mut sig = [0u8; 65];
 		let mut msg = [0u8; 32];
 		match transaction {
@@ -545,7 +545,7 @@ impl<T: Config> Pallet<T> {
 	// Controls that must be performed by the pool.
 	// The controls common with the State Transition Function (STF) are in
 	// the function `validate_transaction_common`.
-	fn validate_transaction_in_pool(
+	pub fn validate_transaction_in_pool(
 		origin: H160,
 		transaction: &Transaction,
 	) -> TransactionValidity {

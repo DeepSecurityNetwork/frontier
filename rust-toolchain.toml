@@ -2,4 +2,4 @@
 channel = "nightly-2025-06-23" # rustc 1.89.0-nightly (be19eda0d 2025-06-22)
 components = ["cargo", "clippy", "rustc", "rustfmt", "rust-docs"]
 profile = "minimal"
-targets = ["wasm32v1-none"]
+targets = ["wasm32-unknown-unknown"]

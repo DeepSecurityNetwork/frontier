@@ -325,6 +325,34 @@ fn ensure_paritydb_has_v3_columns(db_path: &Path) -> UpgradeResult<()> {
 	Ok(())
 }
 
+/// Ensure the RocksDB database has the 5 column families required by V3.
+/// If the DB was created with 4 columns (V2), add the missing column.
+#[cfg(feature = "rocksdb")]
+fn ensure_rocksdb_has_v3_columns(db_path: &Path) -> UpgradeResult<()> {
+	let db_cfg_v3 = kvdb_rocksdb::DatabaseConfig::with_columns(V3_NUM_COLUMNS);
+
+	// If this opens, the DB is already compatible with v3.
+	if kvdb_rocksdb::Database::open(&db_cfg_v3, db_path).is_ok() {
+		return Ok(());
+	}
+
+	// Otherwise, attempt to add the missing column to an existing v2 (4-column) DB.
+	let mut db = {
+		let db_cfg_v2 = kvdb_rocksdb::DatabaseConfig::with_columns(V2_NUM_COLUMNS);
+		kvdb_rocksdb::Database::open(&db_cfg_v2, db_path).map_err(|err| {
+			io::Error::other(format!(
+				"Failed to open RocksDB with {V2_NUM_COLUMNS} columns to add missing column: {err}"
+			))
+		})?
+	};
+
+	db.add_column().map_err(|err| {
+		io::Error::other(format!("Failed to add RocksDB column (v2->v3): {err}"))
+	})?;
+
+	Ok(())
+}
+
 /// Migration from version1 to version2:
 /// - The format of the Ethereum<>Substrate block mapping changed to support equivocation.
 /// - Migrating schema from One-to-one to One-to-many (EthHash: Vec<SubstrateHash>) relationship.
@@ -389,10 +417,18 @@ pub(crate) fn migrate_1_to_2_rocks_db<Block: BlockT, C: HeaderBackend<Block>>(
 		Ok(())
 	};
 
-	// Open with V3_NUM_COLUMNS to handle both v1 DBs (will create missing columns)
-	// and test DBs that were created with 5 columns.
-	let db_cfg = kvdb_rocksdb::DatabaseConfig::with_columns(V3_NUM_COLUMNS);
-	let db = kvdb_rocksdb::Database::open(&db_cfg, db_path)?;
+	// Open with V3_NUM_COLUMNS to handle test DBs that were created with 5 columns.
+	// Fall back to V2_NUM_COLUMNS for production DBs that only have 4 columns.
+	let db = {
+		let db_cfg_v3 = kvdb_rocksdb::DatabaseConfig::with_columns(V3_NUM_COLUMNS);
+		match kvdb_rocksdb::Database::open(&db_cfg_v3, db_path) {
+			Ok(db) => db,
+			Err(_) => {
+				let db_cfg_v2 = kvdb_rocksdb::DatabaseConfig::with_columns(V2_NUM_COLUMNS);
+				kvdb_rocksdb::Database::open(&db_cfg_v2, db_path)?
+			}
+		}
+	};
 
 	// Get all the block hashes we need to update
 	let ethereum_hashes: Vec<_> = db
@@ -529,6 +565,7 @@ pub(crate) fn migrate_2_to_3_rocks_db<Block: BlockT, C: HeaderBackend<Block>>(
 	db_path: &Path,
 ) -> UpgradeResult<UpgradeVersion2To3Summary> {
 	log::info!("🔨 Running Frontier DB migration from version 2 to version 3. Please wait.");
+	ensure_rocksdb_has_v3_columns(db_path)?;
 	let mut res = UpgradeVersion2To3Summary {
 		success: 0,
 		skipped: 0,
